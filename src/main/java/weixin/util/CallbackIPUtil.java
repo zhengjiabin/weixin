@@ -1,8 +1,9 @@
 package weixin.util;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.Properties;
+
+import weixin.bean.CallbackIP;
 
 import com.sun.jersey.api.client.Client;
 import com.sun.jersey.api.client.WebResource;
@@ -28,16 +29,14 @@ public class CallbackIPUtil {
 	/**
 	 * 获取微信服务器ip地址
 	 * 
-	 * @param access_token
 	 * @return
 	 */
-	public static String getCallbackIP(String access_token) {
-		Map<String, Object> info = loadCallbackIPFromWeixin(access_token);
+	public static String[] getCallbackIP() {
+		String access_token = AccessTokenUtil.getAccessToken();
+		CallbackIP info = loadCallbackIPFromWeixin(access_token);
 		checkCallbackIP(info);
 
-		String ip_list = info.get("ip_list").toString();
-		prop.setProperty("ip_list", ip_list);
-		return ip_list;
+		return info.getIp_list();
 	}
 
 	/**
@@ -45,11 +44,11 @@ public class CallbackIPUtil {
 	 * 
 	 * @param info
 	 */
-	private static void checkCallbackIP(Map<String, Object> info) {
-		Object errcode = info.get("errcode");
+	private static void checkCallbackIP(CallbackIP info) {
+		int errcode = info.getErrcode();
 
-		if (errcode != null && Integer.parseInt(errcode.toString()) != 0) {
-			Object errmsg = info.get("errmsg");
+		if (errcode != 0) {
+			String errmsg = info.getErrmsg();
 			throw new RuntimeException("errcode:" + errcode + ",errmsg:" + errmsg);
 		}
 	}
@@ -60,13 +59,13 @@ public class CallbackIPUtil {
 	 * @param access_token
 	 * @return
 	 */
-	private static Map<String, Object> loadCallbackIPFromWeixin(String access_token) {
+	private static CallbackIP loadCallbackIPFromWeixin(String access_token) {
 		String url = prop.getProperty("getCallbackIPUrl");
 		url = url.replace("ACCESS_TOKEN", access_token);
 
 		WebResource resource = client.resource(url);
 		String response = resource.get(String.class);
 
-		return JsonUtil.json2Map(response);
+		return JsonUtil.json2Object(response, CallbackIP.class);
 	}
 }

@@ -1,7 +1,6 @@
 package weixin.util;
 
 import java.io.IOException;
-import java.util.Map;
 
 import org.codehaus.jackson.JsonParseException;
 import org.codehaus.jackson.map.JsonMappingException;
@@ -11,20 +10,21 @@ public class JsonUtil {
 	/**
 	 * json格式转map
 	 * 
+	 * @param <T>
+	 * 
 	 * @param json
 	 * @return
 	 */
-	@SuppressWarnings("unchecked")
-	public static Map<String, Object> json2Map(String json) {
+	public static <T> T json2Object(String json, Class<T> c) {
 		if (json == null || json.length() <= 0) {
 			return null;
 		}
 
-		Map<String, Object> info = null;
+		T t = null;
 
 		try {
 			ObjectMapper objectMapper = new ObjectMapper();
-			info = objectMapper.readValue(json, Map.class);
+			t = objectMapper.readValue(json, c);
 		} catch (JsonParseException e) {
 			e.printStackTrace();
 		} catch (JsonMappingException e) {
@@ -33,6 +33,6 @@ public class JsonUtil {
 			e.printStackTrace();
 		}
 
-		return info;
+		return t;
 	}
 }

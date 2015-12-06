@@ -1,8 +1,9 @@
 package weixin.util;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.Properties;
+
+import weixin.bean.AccessToken;
 
 import com.sun.jersey.api.client.Client;
 import com.sun.jersey.api.client.WebResource;
@@ -33,12 +34,8 @@ public class AccessTokenUtil {
 	public static String getAccessToken() {
 		long current_time = System.currentTimeMillis();
 
-		long get_access_token_time = Long.valueOf(prop.getProperty("get_access_token_time"));
-		int expires_in = Integer.valueOf(prop.getProperty("expires_in"));
-
-		if (current_time - get_access_token_time > expires_in * 1000) {
-			prop.setProperty("get_access_token_time", String.valueOf(current_time));
-			return loadAccessToken();
+		if (isNeedLoadAccessTokenFromWeixin(current_time)) {
+			return loadAccessToken(current_time);
 		}
 
 		return prop.getProperty("access_token");
@@ -47,13 +44,19 @@ public class AccessTokenUtil {
 	/**
 	 * 加载凭证
 	 * 
+	 * @param current_time
 	 * @return
 	 */
-	private static String loadAccessToken() {
-		Map<String, Object> info = loadAccessTokenFromWeixin();
-		checkAccessToken(info);
-		setAccessToken(info);
-		return info.get("access_token").toString();
+	private static synchronized String loadAccessToken(long current_time) {
+		if (isNeedLoadAccessTokenFromWeixin(current_time)) {
+			AccessToken info = loadAccessTokenFromWeixin();
+			checkAccessToken(info);
+			setAccessToken(info);
+
+			prop.setProperty("get_access_token_time", String.valueOf(current_time));
+		}
+
+		return prop.getProperty("access_token");
 	}
 
 	/**
@@ -61,11 +64,11 @@ public class AccessTokenUtil {
 	 * 
 	 * @param info
 	 */
-	private static void checkAccessToken(Map<String, Object> info) {
-		Object errcode = info.get("errcode");
+	private static void checkAccessToken(AccessToken info) {
+		int errcode = info.getErrcode();
 
-		if (errcode != null && Integer.parseInt(errcode.toString()) != 0) {
-			Object errmsg = info.get("errmsg");
+		if (errcode != 0) {
+			String errmsg = info.getErrmsg();
 			throw new RuntimeException("errcode:" + errcode + ",errmsg:" + errmsg);
 		}
 	}
@@ -75,12 +78,12 @@ public class AccessTokenUtil {
 	 * 
 	 * @param json
 	 */
-	private static void setAccessToken(Map<String, Object> info) {
-		String access_token = info.get("access_token").toString();
-		String expires_in = info.get("expires_in").toString();
+	private static void setAccessToken(AccessToken info) {
+		String access_token = info.getAccess_token();
+		int expires_in = info.getExpires_in();
 
 		prop.setProperty("access_token", access_token);
-		prop.setProperty("expires_in", expires_in);
+		prop.setProperty("expires_in", String.valueOf(expires_in));
 	}
 
 	/**
@@ -88,7 +91,7 @@ public class AccessTokenUtil {
 	 * 
 	 * @return
 	 */
-	private static Map<String, Object> loadAccessTokenFromWeixin() {
+	private static AccessToken loadAccessTokenFromWeixin() {
 		String appid = prop.getProperty("appid");
 		String secret = prop.getProperty("secret");
 
@@ -99,7 +102,19 @@ public class AccessTokenUtil {
 		WebResource resource = client.resource(url);
 		String response = resource.get(String.class);
 
-		return JsonUtil.json2Map(response);
+		return JsonUtil.json2Object(response, AccessToken.class);
 	}
 
+	/**
+	 * 是否需要
+	 * 
+	 * @param current_time
+	 * @return
+	 */
+	private static boolean isNeedLoadAccessTokenFromWeixin(long current_time) {
+		long get_access_token_time = Long.valueOf(prop.getProperty("get_access_token_time"));
+		int expires_in = Integer.valueOf(prop.getProperty("expires_in"));
+
+		return current_time - get_access_token_time > expires_in * 1000;
+	}
 }
